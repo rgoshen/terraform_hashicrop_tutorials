@@ -23,6 +23,7 @@
       - [Configuration](#configuration)
       - [Apply Changes](#apply-changes)
     - [Destroy Infrastructure](#destroy-infrastructure)
+      - [Destroy](#destroy)
     - [Define Input Variables](#define-input-variables)
     - [Query Data with Outputs](#query-data-with-outputs)
     - [Store Remote State](#store-remote-state)
@@ -88,7 +89,8 @@ You can also connect Terraform Cloud to version control systems (VCSs) like GitH
 | `terraform validate`   | Validate your configuration                 |
 | `terraform show`       | Inspect current state                       |
 | `terraform state`      | Advance state management                    |
-| `terraform state list` | list of resources in project's state        |
+| `terraform state list` | List of resources in project's state        |
+| `terraform destroy`    | Terminates resources managed by your Terraform project        |
 
 ### Build Infrastructure
 
@@ -457,6 +459,58 @@ Apply complete! Resources: 1 added, 0 changed, 1 destroyed.
 As indicated by the execution plan, Terraform first destroyed the existing instance and then created a new one in its place. You can use `terraform show` again to have Terraform print out the new values associated with this instance.
 
 ### Destroy Infrastructure
+
+Once you no longer need infrastructure, you may want to destroy it to reduce your security exposure and costs. For example, you may remove a production environment from service, or manage short-lived environments like build or testing systems. In addition to building and modifying infrastructure, Terraform can destroy or recreate the infrastructure it manages.
+
+#### Destroy
+
+The `terraform destroy` command terminates resources managed by your Terraform project. This command is the inverse of `terraform apply` in that it terminates all the resources specified in your Terraform state. It does _not_ destroy resources running elsewhere that are not managed by the current Terraform project.
+
+Destroy the resources you created.
+
+```bash
+ terraform destroy
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+
+
+
+ # aws_instance.app_server will be destroyed
+  - resource "aws_instance" "app_server" {
+      - ami                          = "ami-08d70e59c07c61a3a" -> null
+      - arn                          = "arn:aws:ec2:us-west-2:561656980159:instance/i-0fd4a35969bd21710" -> null
+
+#...
+
+Plan: 0 to add, 0 to change, 1 to destroy.
+
+Do you really want to destroy all resources?
+  Terraform will destroy all your managed infrastructure, as shown above.
+  There is no undo. Only 'yes' will be accepted to confirm.
+
+  Enter a value:
+```
+
+The `-` prefix indicates that the instance will be destroyed. As with apply, Terraform shows its execution plan and waits for approval before making any changes.
+
+Answer `yes` to execute this plan and destroy the infrastructure.
+
+```bash
+Enter a value: yes
+
+aws_instance.app_server: Destroying... [id=i-0fd4a35969bd21710]
+aws_instance.app_server: Still destroying... [id=i-0fd4a35969bd21710, 10s elapsed]
+aws_instance.app_server: Still destroying... [id=i-0fd4a35969bd21710, 20s elapsed]
+aws_instance.app_server: Still destroying... [id=i-0fd4a35969bd21710, 30s elapsed]
+aws_instance.app_server: Destruction complete after 31s
+
+Destroy complete! Resources: 1 destroyed.
+```
+
+Just like with `apply`, Terraform determines the order to destroy your resources. In this case, Terraform identified a single instance with no other dependencies, so it destroyed the instance. In more complicated cases with multiple resources, Terraform will destroy them in a suitable order to respect dependencies.
 
 ### Define Input Variables
 
