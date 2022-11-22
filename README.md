@@ -25,7 +25,12 @@
     - [Destroy Infrastructure](#destroy-infrastructure)
       - [Destroy](#destroy)
     - [Define Input Variables](#define-input-variables)
+      - [Set the instance name with a variable](#set-the-instance-name-with-a-variable)
+      - [Apply your configuration](#apply-your-configuration)
     - [Query Data with Outputs](#query-data-with-outputs)
+      - [Output EC2 instance configuration](#output-ec2-instance-configuration)
+      - [Inspect output values](#inspect-output-values)
+      - [Destroy infrastructure](#destroy-infrastructure-1)
     - [Store Remote State](#store-remote-state)
 
 ## Get Started - AWS
@@ -91,6 +96,7 @@ You can also connect Terraform Cloud to version control systems (VCSs) like GitH
 | `terraform state`      | Advance state management                    |
 | `terraform state list` | List of resources in project's state        |
 | `terraform destroy`    | Terminates resources managed by your Terraform project        |
+| `terraform output`    | Prints output values to the screen when you apply your configuration      |
 
 ### Build Infrastructure
 
@@ -514,6 +520,230 @@ Just like with `apply`, Terraform determines the order to destroy your resources
 
 ### Define Input Variables
 
+#### Set the instance name with a variable
+
+The current configuration includes a number of hard-coded values. Terraform variables allow you to write configuration that is flexible and easier to re-use.
+
+Add a variable to define the instance name.
+
+Create a new file called `variables.tf` with a block defining a new `instance_name` variable.
+
+```bash
+variable "instance_name" {
+  description = "Value of the Name tag for the EC2 instance"
+  type        = string
+  default     = "ExampleAppServerInstance"
+}
+```
+
+> **Note:** Terraform loads all files in the current directory ending in `.tf`, so you can name your configuration files however you choose.
+
+In `main.tf`, update the `aws_instance` resource block to use the new variable. The `instance_name` variable block will default to its default value ("ExampleAppServerInstance") unless you declare a different value.
+
+```bash
+ resource "aws_instance" "app_server" {
+   ami           = "ami-08d70e59c07c61a3a"
+   instance_type = "t2.micro"
+
+   tags = {
+-    Name = "ExampleAppServerInstance"
++    Name = var.instance_name
+   }
+ }
+
+```
+
+#### Apply your configuration
+
+Apply the configuration. Respond to the confirmation prompt with a `yes`.
+
+```bash
+ terraform apply
+
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+
+
+ # aws_instance.app_server will be created
+  + resource "aws_instance" "app_server" {
+      + ami                          = "ami-08d70e59c07c61a3a"
+      + arn                          = (known after apply)
+
+#...
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+aws_instance.app_server: Creating...
+aws_instance.app_server: Still creating... [10s elapsed]
+aws_instance.app_server: Still creating... [20s elapsed]
+aws_instance.app_server: Still creating... [30s elapsed]
+aws_instance.app_server: Still creating... [40s elapsed]
+aws_instance.app_server: Creation complete after 50s [id=i-0bf954919ed765de1]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+```
+
+Now apply the configuration again, this time overriding the default instance name by passing in a variable using the `-var` flag. Terraform will update the instance's `Name` tag with the new name. Respond to the confirmation prompt with yes.
+
+```bash
+terraform apply -var "instance_name=YetAnotherName"
+aws_instance.app_server: Refreshing state... [id=i-0bf954919ed765de1]
+
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+
+
+ aws_instance.app_server will be updated in-place
+  ~ resource "aws_instance" "app_server" {
+        id                           = "i-0bf954919ed765de1"
+      ~ tags                         = {
+          ~ "Name" = "ExampleAppServerInstance" -> "YetAnotherName"
+        }
+
+
+ (26 unchanged attributes hidden)
+
+
+
+
+
+
+ (4 unchanged blocks hidden)
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+aws_instance.app_server: Modifying... [id=i-0bf954919ed765de1]
+aws_instance.app_server: Modifications complete after 7s [id=i-0bf954919ed765de1]
+
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+```
+
+Setting variables via the command-line will not save their values. Terraform supports many ways to use and set variables so you can avoid having to enter them repeatedly as you execute commands. To learn more, follow our in-depth tutorial, [Customize Terraform Configuration with Variables](https://developer.hashicorp.com/terraform/tutorials/configuration-language/variables).
+
 ### Query Data with Outputs
+
+#### Output EC2 instance configuration
+
+Create a file called `outputs.tf` in your `learn-terraform-aws-instance` directory.
+
+Add the configuration below to `outputs.tf` to define outputs for your EC2 instance's ID and IP address.
+
+```bash
+output "instance_id" {
+  description = "ID of the EC2 instance"
+  value       = aws_instance.app_server.id
+}
+
+output "instance_public_ip" {
+  description = "Public IP address of the EC2 instance"
+  value       = aws_instance.app_server.public_ip
+}
+```
+
+#### Inspect output values
+
+You must apply this configuration before you can use these output values. Apply your configuration now. Respond to the confirmation prompt with `yes`.
+
+```bash
+ terraform apply
+aws_instance.app_server: Refreshing state... [id=i-0bf954919ed765de1]
+
+Changes to Outputs:
+  + instance_id        = "i-0bf954919ed765de1"
+  + instance_public_ip = "54.186.202.254"
+
+You can apply this plan to save these new output values to the Terraform state,
+without changing any real infrastructure.
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+instance_id = "i-0bf954919ed765de1"
+instance_public_ip = "54.186.202.254"
+```
+
+Terraform prints output values to the screen when you apply your configuration. Query the outputs with the `terraform output` command.
+
+```bash
+terraform output
+instance_id = "i-0bf954919ed765de1"
+instance_public_ip = "54.186.202.254"
+```
+
+You can use Terraform outputs to connect your Terraform projects with other parts of your infrastructure, or with other Terraform projects. To learn more, follow our in-depth tutorial, [Output Data from Terraform](https://developer.hashicorp.com/terraform/tutorials/configuration-language/outputs).
+
+#### Destroy infrastructure
+
+> **Tip:** If you plan to continue to later tutorials, skip this destroy step.
+
+Destroy your infrastructure. Respond to the confirmation prompt with `yes`.
+
+```bash
+ terraform destroy
+
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+
+
+
+ # aws_instance.app_server will be destroyed
+  - resource "aws_instance" "app_server" {
+      - ami                          = "ami-08d70e59c07c61a3a" -> null
+      - arn                          = "arn:aws:ec2:us-west-2:561656980159:instance/i-0bf954919ed765de1" -> null
+
+#...
+
+Plan: 0 to add, 0 to change, 1 to destroy.
+
+Changes to Outputs:
+  - instance_id        = "i-0bf954919ed765de1" -> null
+  - instance_public_ip = "54.186.202.254" -> null
+
+Do you really want to destroy all resources?
+  Terraform will destroy all your managed infrastructure, as shown above.
+  There is no undo. Only 'yes' will be accepted to confirm.
+
+  Enter a value: yes
+
+aws_instance.app_server: Destroying... [id=i-0bf954919ed765de1]
+aws_instance.app_server: Still destroying... [id=i-0bf954919ed765de1, 10s elapsed]
+aws_instance.app_server: Still destroying... [id=i-0bf954919ed765de1, 20s elapsed]
+aws_instance.app_server: Still destroying... [id=i-0bf954919ed765de1, 30s elapsed]
+aws_instance.app_server: Destruction complete after 31s
+
+Destroy complete! Resources: 1 destroyed.
+```
 
 ### Store Remote State
